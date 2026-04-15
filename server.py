@@ -42,24 +42,28 @@ def get_objects():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/get_map')
-def get_map():
-    # Координати Майдану
-    lat, lon, z = 50.4501, 30.5234, 16
-    
-    # Математичний розрахунок номера тайла (квадрата)
-    lat_rad = math.radians(lat)
-    n = 2.0 ** z
-    x = int((lon + 180.0) / 360.0 * n)
-    y = int((1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0 * n)
-    
+
+@app.route('/get_map/<int:z>/<int:x>/<int:y>.png')
+def get_map(z, x, y):
+    # Формуємо URL до реальних карт OSM
     url = f"https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    
     headers = {'User-Agent': 'EarthSimApp/1.0'}
     
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return send_file(io.BytesIO(response.content), mimetype='image/png')
-    return jsonify({"error": "failed"}), 404
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            return send_file(io.BytesIO(response.content), mimetype='image/png')
+        else:
+            return f"OSM Error: {response.status_code}", response.status_code
+    except Exception as e:
+        return str(e), 500
+
+
+
+
+
+
 
 @app.route('/import_capitals')
 def import_capitals():

@@ -1,11 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://b1jkp2hwuievg"]
+[gd_scene load_steps=4 format=3 uid="uid://b1jkp2hwuievg"]
 
 [ext_resource type="Script" path="res://world.gd" id="1_6cr23"]
 [ext_resource type="Script" path="res://ground.gd" id="2_num3q"]
 [ext_resource type="Script" path="res://camera_3d.gd" id="2_ww2b0"]
-
-[sub_resource type="PlaneMesh" id="PlaneMesh_7ghno"]
-size = Vector2(1025, 1075)
 
 [node name="World" type="Node3D"]
 script = ExtResource("1_6cr23")
@@ -21,5 +18,4 @@ script = ExtResource("2_ww2b0")
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 0, 0)
 
 [node name="Ground" type="MeshInstance3D" parent="."]
-mesh = SubResource("PlaneMesh_7ghno")
 script = ExtResource("2_num3q")

@@ -15,10 +15,12 @@ func _ready():
 	http_request.request("http://127.0.0.1:5000/get_objects")
 
 func lon_lat_to_mercator(lon, lat):
-	var x = lon * 20037508.34 / 180.0
-	var y = log(tan((90.0 + lat) * PI / 360.0)) / (PI / 180.0)
-	y = y * 20037508.34 / 180.0
-	return Vector2(x, -y)
+	# X: від 0 до 1024
+	var x = (lon + 180.0) * (1024.0 / 360.0)
+	# Y: від 0 до 1024 (Меркатор)
+	var lat_rad = deg_to_rad(lat)
+	var y = (1.0 - log(tan(lat_rad) + (1.0 / cos(lat_rad))) / PI) / 2.0 * 1024.0
+	return Vector2(x, y)
 
 func _on_request_completed(_result, response_code, _headers, body):
 	if response_code == 200:
@@ -32,32 +34,30 @@ func spawn_object(data):
 	mesh_instance.mesh = BoxMesh.new()
 	add_child(mesh_instance)
 	
-	# Створюємо матеріал
 	var material = StandardMaterial3D.new()
 	
-	# ПЕРЕВІРКА: якщо це столиця
 	if data["type"] == "capital":
-		mesh_instance.mesh.size = Vector3(50, 100, 50) # Дуже великий куб
-		material.albedo_color = Color(1, 0, 0) # Яскраво-червоний
+		mesh_instance.mesh.size = Vector3(20, 100, 20) # Вежа
+		material.albedo_color = Color(1, 0, 0) # Червоний
 	else:
-		# Звичайні будинки (як було раніше)
 		mesh_instance.mesh.size = Vector3(2, 5, 2)
-		material.albedo_color = Color(0.8, 0.4, 0.2) # Колір цегли
+		material.albedo_color = Color(0.8, 0.4, 0.2)
 	
 	mesh_instance.set_surface_override_material(0, material)
 	
-	# Розрахунок позиції (залишаємо твій робочий метод)
 	var raw_pos = data["pos"].replace("POINT(", "").replace(")", "").split(" ")
 	var m_pos = lon_lat_to_mercator(float(raw_pos[0]), float(raw_pos[1]))
 	
-	# Висота (Y): для столиці ставимо вище (50), для будинків низько (2.5)
+	# Висота: столиці на 50, будинки на 2.5
 	var h = 50.0 if data["type"] == "capital" else 2.5
-	# СТАВИМО ВІДНОСНО ЦЕНТРУ
-	mesh_instance.position = Vector3(m_pos.x - center_x, 5, m_pos.y - center_z)
+	
+	# ТУТ ВИПРАВЛЕННЯ: використовуємо m_pos.y для осі Z у Godot
+	# Віднімаємо 512, щоб центр карти (0,0) збігався з центром сцени
+	mesh_instance.position = Vector3(m_pos.x - 512, h, m_pos.y - 512)
 	
 	if not camera_done:
 		var cam = get_viewport().get_camera_3d()
 		if cam:
-			cam.position = Vector3(0, 500, 500)
+			cam.position = Vector3(0, 1000, 1000) # Камера вище, щоб бачити весь світ
 			cam.look_at(Vector3(0, 0, 0))
 			camera_done = true

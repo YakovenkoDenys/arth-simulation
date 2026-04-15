@@ -1,46 +1,55 @@
 extends Node3D
 
 func _ready():
-	# 1. Очищуємо вузол від старих об'єктів
-	for n in get_children():
-		n.queue_free()
-	
+	#self.mesh = null # Видаляємо старий меш вузла
 	var zoom = 2
 	var tile_size = 256.0
 	
-	# 2. ОДИН цикл для створення сітки 4x4
 	for x in range(4):
 		for y in range(4):
-			var tile = MeshInstance3D.new()
-			tile.mesh = PlaneMesh.new()
-			tile.mesh.size = Vector2(tile_size, tile_size)
-			
-			# МАТЕМАТИКА ЦЕНТРУВАННЯ:
-			# Початок координат (0,0) буде точно в центрі всієї карти світу.
-			# Ми віднімаємо 384, щоб змістити сітку (256 * 1.5)
-			var pos_x = (x * tile_size) - 384.0
-			var pos_z = (y * tile_size) - 384.0
-			
-			# Висота -0.1, щоб бути під кубами, і мікро-зсув 0.001 для усунення мерехтіння
-			tile.position = Vector3(pos_x, -0.1 + (x * 0.001), pos_z)
-			add_child(tile)
-			
-			# 3. Запит на сервер (використовуємо твій робочий формат)
-			var http = HTTPRequest.new()
-			add_child(http)
-			http.request_completed.connect(self._on_tile_loaded.bind(tile))
-			
-			var url = "http://127.0.0.1:5000/get_map/%d/%d/%d.png" % [zoom, x, y]
-			http.request(url)
+			spawn_tile(zoom, x, y, tile_size)
 
-func _on_tile_loaded(_result, response_code, _headers, body, tile):
+func spawn_tile(z, x, y, size):
+	var tile = MeshInstance3D.new()
+	var p_mesh = PlaneMesh.new()
+	p_mesh.size = Vector2(size+8, size+8)
+	p_mesh.subdivide_depth = 128
+	p_mesh.subdivide_width = 128
+	tile.mesh = p_mesh
+	
+	var pos_x = (x * size) - 384.0
+	var pos_z = (y * size) - 384.0
+	# Мікро-зсув (x * 0.001) щоб прибрати мерехтіння
+	tile.position = Vector3(pos_x, -1.0 + (x * 0.001), pos_z)
+	add_child(tile)
+	
+	var mat = ShaderMaterial.new()
+	mat.shader = load("res://terrain.gdshader")
+	tile.set_surface_override_material(0, mat)
+	
+	# Базова адреса твого сервера
+	var server = "http://127.0.0.1:5000"
+	
+	# 1. Запит на КОЛІР
+	var http_color = HTTPRequest.new()
+	add_child(http_color)
+	http_color.request_completed.connect(self._on_data_loaded.bind(mat, "color_map"))
+	var url_color = server + "/get_map/%d/%d/%d.png" % [z, x, y]
+	http_color.request(url_color)
+	
+	# 2. Запит на ВИСОТУ
+	var http_height = HTTPRequest.new()
+	add_child(http_height)
+	http_height.request_completed.connect(self._on_data_loaded.bind(mat, "height_map"))
+	var url_height = server + "/get_height/%d/%d/%d.png" % [z, x, y]
+	http_height.request(url_height)
+
+func _on_data_loaded(_result, response_code, _headers, body, mat, param_name):
 	if response_code == 200:
 		var image = Image.new()
 		if image.load_png_from_buffer(body) == OK:
 			var tex = ImageTexture.create_from_image(image)
-			var mat = StandardMaterial3D.new()
-			mat.albedo_texture = tex
-			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			# Важливо: вимикаємо фільтрацію, щоб не було сірих ліній на стиках
-			mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			tile.set_surface_override_material(0, mat)
+			# ВИМИКАЄМО ФІЛЬТРАЦІЮ (прибирає розриви на стиках)
+			
+			# Передаємо текстуру в шейдер під потрібним ім'ям (color_map або height_map)
+			mat.set_shader_parameter(param_name, tex)

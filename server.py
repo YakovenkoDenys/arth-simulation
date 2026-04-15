@@ -62,6 +62,18 @@ def get_map(z, x, y):
 
 
 
+@app.route('/get_height/<int:z>/<int:x>/<int:y>.png')
+def get_height(z, x, y):
+    # Те саме посилання, яке ти перевірив у браузері
+    url = f"https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
+    headers = {'User-Agent': 'EarthSimApp/1.0'}
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        return send_file(io.BytesIO(response.content), mimetype='image/png')
+    except Exception as e:
+        return str(e), 500
+
+
 
 
 

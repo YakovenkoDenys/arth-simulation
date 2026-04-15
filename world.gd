@@ -37,10 +37,10 @@ func spawn_object(data):
 	var material = StandardMaterial3D.new()
 	
 	if data["type"] == "capital":
-		mesh_instance.mesh.size = Vector3(20, 100, 20) # Вежа
+		mesh_instance.mesh.size = Vector3(0.5, 2, 0.5) # Вежа
 		material.albedo_color = Color(1, 0, 0) # Червоний
 	else:
-		mesh_instance.mesh.size = Vector3(2, 5, 2)
+		mesh_instance.mesh.size = Vector3(0.1, 0.5, 0.1)
 		material.albedo_color = Color(0.8, 0.4, 0.2)
 	
 	mesh_instance.set_surface_override_material(0, material)
@@ -49,7 +49,7 @@ func spawn_object(data):
 	var m_pos = lon_lat_to_mercator(float(raw_pos[0]), float(raw_pos[1]))
 	
 	# Висота: столиці на 50, будинки на 2.5
-	var h = 50.0 if data["type"] == "capital" else 2.5
+	var h = 2 if data["type"] == "capital" else 1
 	
 	# ТУТ ВИПРАВЛЕННЯ: використовуємо m_pos.y для осі Z у Godot
 	# Віднімаємо 512, щоб центр карти (0,0) збігався з центром сцени

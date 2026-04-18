@@ -5,23 +5,25 @@ from flask_cors import CORS
 import requests
 import io
 import osmnx as ox
-import json  # Додаємо цей імпорт
+import json 
+import os
+
+ # Додаємо цей імпорт
 app = Flask(__name__)
 CORS(app) # Дозволяє Godot підключатися
 
 # Твої дані від бази (ті, що ми налаштували в Docker)
-DB_CONFIG = {
-    "host": "127.0.0.1",
-    "port": "5433",
-    "database": "earth_database",
-    "user": "earth_master",
-    "password": "super_secret_password_99"
-}
+# Цей рядок автоматично вибере: або адресу з інтернету, або твою локальну базу
+DATABASE_URL = os.environ.get('DATABASE_URL', "postgresql://earth_master:super_secret_password_99@127.0.0.1:5433/earth_database")
+
+def get_connection():
+    # Підключення за допомогою єдиного рядка (URL)
+    return psycopg2.connect(DATABASE_URL)
 
 @app.route('/get_objects', methods=['GET'])
 def get_objects():
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = get_connection()
         cur = conn.cursor()
         # Запитуємо назву та координати у форматі тексту
         cur.execute("SELECT name, category, ST_AsText(location) FROM world_objects;")
@@ -73,10 +75,6 @@ def get_height(z, x, y):
     except Exception as e:
         return str(e), 500
 
-
-
-
-
 @app.route('/import_capitals')
 def import_capitals():
     try:
@@ -88,7 +86,7 @@ def import_capitals():
         response = requests.get(url, params={'data': query}, timeout=30)
         data = response.json()
         
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = get_connection()
         cur = conn.cursor()
         
         count = 0
@@ -112,10 +110,6 @@ def import_capitals():
         print(f"Помилка: {e}")
         return str(e), 500
 
-
-
-
-
 @app.route('/import_area/<float:lat>/<float:lon>/<int:dist>')
 def import_area(lat, lon, dist):
     try:
@@ -123,7 +117,7 @@ def import_area(lat, lon, dist):
         print(f"Завантаження будівель для {lat}, {lon}...")
         buildings = ox.features_from_point((lat, lon), tags={'building': True}, dist=dist)
         
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = get_connection()
         cur = conn.cursor()
         
         count = 0
@@ -148,5 +142,8 @@ def import_area(lat, lon, dist):
         return jsonify({"error": str(e)}), 500
 # ЦЕЙ БЛОК ЗАВЖДИ В САМОМУ КІНЦІ
 if __name__ == '__main__':
-    print("Сервер симуляції запущено на http://127.0.0.1:5000")
-    app.run(host='0.0.0.0', port=5000)
+    # Порт береться з налаштувань сервера або ставиться 5000 за замовчуванням
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Сервер запущено на порту {port}")
+    app.run(host='0.0.0.0', port=port)
+

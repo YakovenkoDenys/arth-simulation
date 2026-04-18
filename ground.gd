@@ -28,7 +28,7 @@ func spawn_tile(z, x, y, size):
 	tile.set_surface_override_material(0, mat)
 	
 	# Базова адреса твого сервера
-	var server = "http://127.0.0.1:5000"
+	var server = "https://arth-simulation.onrender.com"
 	
 	# 1. Запит на КОЛІР
 	var http_color = HTTPRequest.new()

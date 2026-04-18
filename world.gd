@@ -12,7 +12,7 @@ var center_z = -6525350.0
 
 func _ready():
 	http_request.request_completed.connect(_on_request_completed)
-	http_request.request("http://127.0.0.1:5000/get_objects")
+	http_request.request("https://arth-simulation.onrender.com/get_objects")
 
 func lon_lat_to_mercator(lon, lat):
 	# X: від 0 до 1024

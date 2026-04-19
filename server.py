@@ -1,5 +1,5 @@
 import math
-from flask import Flask, jsonify, send_file
+from flask import Flask, jsonify, send_file, request
 import psycopg2
 from flask_cors import CORS
 import requests
@@ -9,6 +9,9 @@ import json
 import os
 
  # Додаємо цей імпорт
+ox.settings.use_cache = True
+ox.settings.log_console = False
+
 app = Flask(__name__)
 CORS(app) # Дозволяє Godot підключатися
 
@@ -21,12 +24,27 @@ def get_connection():
     return psycopg2.connect(DATABASE_URL)
 
 @app.route('/get_objects', methods=['GET'])
+@app.route('/get_objects', methods=['GET'])
 def get_objects():
     try:
+        # Отримуємо межі огляду від Godot (якщо їх немає — беремо весь світ)
+        min_lon = request.args.get('min_lon', -180)
+        min_lat = request.args.get('min_lat', -90)
+        max_lon = request.args.get('max_lon', 180)
+        max_lat = request.args.get('max_lat', 90)
+
         conn = get_connection()
         cur = conn.cursor()
-        # Запитуємо назву та координати у форматі тексту
-        cur.execute("SELECT name, category, ST_AsText(location) FROM world_objects;")
+        
+        # Вибираємо назву, тип, чисті X та Y координати, та JSON дані
+        # WHERE location && ... — це миттєвий пошук об'єктів тільки в межах екрана
+        query = """
+            SELECT name, category, ST_X(location), ST_Y(location), data 
+            FROM world_objects 
+            WHERE location && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
+            LIMIT 1000;
+        """
+        cur.execute(query, (min_lon, min_lat, max_lon, max_lat))
         rows = cur.fetchall()
         
         results = []
@@ -34,7 +52,9 @@ def get_objects():
             results.append({
                 "name": r[0],
                 "type": r[1],
-                "pos": r[2] # Це поверне "POINT(30.52 50.45)"
+                "x": r[2],     # Число (довгота)
+                "y": r[3],     # Число (широта)
+                "meta": r[4]   # Твій JSON із властивостями
             })
         
         cur.close()
@@ -42,7 +62,6 @@ def get_objects():
         return jsonify(results)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 
 @app.route('/get_map/<int:z>/<int:x>/<int:y>.png')
